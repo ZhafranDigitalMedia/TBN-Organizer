@@ -9,7 +9,6 @@ type FormData = {
   tanggal_acara: string;
   lokasi_acara: string;
   jumlah_tamu: string;
-  tema: string;
   testimoni: string;
   featured: boolean;
 };
@@ -23,7 +22,6 @@ export default function AddPortfolioForm() {
     tanggal_acara: "",
     lokasi_acara: "",
     jumlah_tamu: "",
-    tema: "",
     testimoni: "",
     featured: false,
   });
@@ -39,7 +37,6 @@ export default function AddPortfolioForm() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Optimasi pembentukan preview gambar
   const addFiles = (selectedFiles: File[]) => {
     const imageFiles = selectedFiles.filter((file) =>
       file.type.startsWith("image/"),
@@ -80,13 +77,41 @@ export default function AddPortfolioForm() {
     setPreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log("Data portfolio:", {
-      ...formData,
-      jumlah_tamu: Number(formData.jumlah_tamu),
-      gambar: files,
-    });
+
+    try {
+      const data = new FormData();
+
+      data.append("namaPengantin", formData.namaPengantin);
+      data.append("tanggal_acara", formData.tanggal_acara);
+      data.append("lokasi_acara", formData.lokasi_acara);
+      data.append("jumlah_tamu", formData.jumlah_tamu);
+      data.append("testimoni", formData.testimoni);
+      data.append("featured", String(formData.featured));
+
+      files.forEach((file) => {
+        data.append("gambar", file);
+      });
+
+      const response = await fetch("/api/portfolio", {
+        method: "POST",
+        body: data,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "Gagal menyimpan portfolio");
+      }
+
+      console.log("Portfolio berhasil disimpan:", result);
+      alert("Portfolio berhasil disimpan!");
+      router.push("/admin/dashboard");
+    } catch (error) {
+      console.error("Gagal menyimpan portfolio:", error);
+      alert("Gagal menyimpan portfolio.");
+    }
   };
 
   return (
@@ -189,26 +214,6 @@ export default function AddPortfolioForm() {
           </div>
         </div>
 
-        {/* Tema */}
-        <div>
-          <label
-            htmlFor="tema"
-            className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[#6E5544]"
-          >
-            Tema Wedding
-          </label>
-          <input
-            id="tema"
-            type="text"
-            name="tema"
-            value={formData.tema}
-            onChange={handleChange}
-            placeholder="Elegant Garden Wedding"
-            required
-            className="w-full border border-[#E8DFD1] bg-[#F5F0E8] px-4 py-3 text-sm text-[#3D2E24] outline-none transition-colors placeholder:text-[#A9988B] focus:border-[#B87A5E]"
-          />
-        </div>
-
         {/* Testimoni */}
         <div>
           <label
@@ -274,12 +279,12 @@ export default function AddPortfolioForm() {
             onDrop={handleDrop}
             className={`flex flex-col items-center justify-center rounded-sm border-2 border-dashed p-8 text-center transition-colors sm:p-12 ${
               isDragging
-                ? "border-[#B87A5E] bg-[#F1E8DF]"
+                ? "border-tbn-terracotta bg-[#F1E8DF]"
                 : "border-[#DCD5C9] bg-[#F5F0E8]/50"
             }`}
           >
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#EFE5DB]">
-              <Upload className="h-5 w-5 text-[#B87A5E]" />
+              <Upload className="h-5 w-5 text-tbn-terracotta" />
             </div>
             <p className="text-sm font-medium text-[#6E5544]">
               Drag & drop foto di sini

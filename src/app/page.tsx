@@ -12,7 +12,7 @@ import Footer from "./components/Footer";
 
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col bg-[#F8F5EE]">
+    <main className="min-h-screen flex flex-col bg-tbn-cream">
       <Navbar />
       <Hero />
       <TentangKami />

@@ -1,22 +1,31 @@
+"use client";
+
 import Link from "next/link";
-import { Heart, Phone, Mail } from "lucide-react";
+import { Heart, Phone, Mail, ArrowUp } from "lucide-react";
 
 export default function Footer() {
+  const handleScrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
   return (
     <footer className="bg-[#231812] text-white">
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-8 lg:px-16">
-        <div className="grid grid-cols-1 gap-10 md:grid-cols-12">
+      <div className="mx-auto max-w-7xl px-6 py-12 sm:px-8 sm:py-16 lg:px-16">
+        <div className="grid grid-cols-1 gap-10 text-center sm:text-left md:grid-cols-12 md:gap-8">
+          
           {/* Brand Info */}
-          <div className="md:col-span-5">
+          <div className="flex flex-col items-center sm:items-start md:col-span-5">
             <div className="flex items-center gap-2">
-              <Heart className="h-4 w-4 fill-[#C68D75] text-[#C68D75]" />
-
+              <Heart className="h-5 w-5 fill-[#C68D75] text-[#C68D75]" />
               <span className="font-serif text-2xl font-semibold tracking-wide text-[#F5F0E8]">
                 TBN Organizer
               </span>
             </div>
 
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-[#A9988B]">
+            <p className="mt-3 max-w-sm text-sm leading-relaxed text-[#A9988B]">
               Kami merancang perayaan yang indah dan bermakna yang akan Anda dan
               orang-orang tercinta kenang selamanya.
             </p>
@@ -29,19 +38,20 @@ export default function Footer() {
             </p>
 
             <ul className="mt-4 space-y-3 text-sm font-medium">
-              {/*  <li>
+              <li>
                 <Link
                   href="/"
-                  className="text-[#F5F0E8] transition-colors hover:text-[#C68D75]"
+                  onClick={handleScrollToTop}
+                  className="inline-block py-1 text-[#F5F0E8] transition-colors hover:text-[#C68D75]"
                 >
                   Beranda
                 </Link>
-              </li> */}
+              </li>
 
               <li>
                 <Link
                   href="/portfolio"
-                  className="text-[#F5F0E8] transition-colors hover:text-[#C68D75]"
+                  className="inline-block py-1 text-[#F5F0E8] transition-colors hover:text-[#C68D75]"
                 >
                   Portofolio
                 </Link>
@@ -55,14 +65,14 @@ export default function Footer() {
               KONTAK
             </p>
 
-            <ul className="mt-4 space-y-3 text-sm text-[#DCD5C9]">
+            <ul className="mt-4 flex flex-col items-center space-y-3 text-sm text-[#DCD5C9] sm:items-start">
               {/* Instagram */}
               <li>
                 <a
                   href="https://www.instagram.com/tbnorganizer_/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-3 transition-colors hover:text-[#C68D75]"
+                  className="inline-flex items-center gap-3 py-1 transition-colors hover:text-[#C68D75]"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -84,27 +94,29 @@ export default function Footer() {
                 </a>
               </li>
 
+              {/* Admin 1 */}
               <li>
                 <a
                   href="https://wa.me/6287873170815"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-3 transition-colors hover:text-[#C68D75]"
+                  className="inline-flex items-center gap-3 py-1 transition-colors hover:text-[#C68D75]"
                 >
                   <Phone className="h-4 w-4 text-[#C68D75]" />
-                  <span>+62 878-7317-0815(admin 1)</span>
+                  <span>+62 878-7317-0815 (Admin 1)</span>
                 </a>
               </li>
-              {/* Phone */}
+
+              {/* Admin 2 */}
               <li>
                 <a
                   href="https://wa.me/6287772092697"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-3 transition-colors hover:text-[#C68D75]"
+                  className="inline-flex items-center gap-3 py-1 transition-colors hover:text-[#C68D75]"
                 >
                   <Phone className="h-4 w-4 text-[#C68D75]" />
-                  <span>+62 877-7209-2697(admin 2)</span>
+                  <span>+62 877-7209-2697 (Admin 2)</span>
                 </a>
               </li>
 
@@ -112,7 +124,7 @@ export default function Footer() {
               <li>
                 <a
                   href="mailto:tbnorganizer@gmail.com"
-                  className="inline-flex items-center gap-3 transition-colors hover:text-[#C68D75]"
+                  className="inline-flex items-center gap-3 py-1 transition-colors hover:text-[#C68D75]"
                 >
                   <Mail className="h-4 w-4 text-[#C68D75]" />
                   <span>tbnorganizer@gmail.com</span>
@@ -121,11 +133,31 @@ export default function Footer() {
             </ul>
           </div>
         </div>
+
+        {/* Mobile Scroll to Top Button */}
+        <div className="mt-10 flex justify-center sm:hidden">
+          <button
+            onClick={handleScrollToTop}
+            className="flex items-center gap-2 rounded-full border border-[#3D2C22] bg-[#2A1E17] px-4 py-2 text-xs text-[#C68D75] transition-colors hover:border-[#C68D75]"
+          >
+            <ArrowUp className="h-3.5 w-3.5" />
+            <span>Kembali ke Atas</span>
+          </button>
+        </div>
       </div>
 
-      {/* Copyright Bar */}
+      {/* Copyright & Developer Bar */}
       <div className="border-t border-[#3D2C22] py-6 text-center text-xs text-[#8C7361]">
-        <p>© 2026 TBN Organizer. All rights reserved.</p>
+        <div className="flex flex-col items-center justify-center gap-1 sm:flex-row sm:gap-2">
+          <p>© 2026 TBN Organizer. All rights reserved.</p>
+          <span className="hidden sm:inline">•</span>
+          <p>
+            Developed by{" "}
+            <span className="font-semibold text-[#C68D75]">
+              ZFN Project Indonesia
+            </span>
+          </p>
+        </div>
       </div>
     </footer>
   );
