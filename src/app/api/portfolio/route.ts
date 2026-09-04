@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { Timestamp } from "firebase-admin/firestore";
 import { getAdminDb } from "../../../lib/firebase/admin";
-import { supabaseServer } from "../../../lib/supabase/server";
+import { getSupabaseServer  } from "../../../lib/supabase/server";
 
 // ==========================================
 // GET - LIST / DETAIL PORTFOLIO
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
         const filePath = `${docRef.id}/${crypto.randomUUID()}.${extension}`;
 
         const { error: uploadError } =
-          await supabaseServer.storage
+          await getSupabaseServer().storage
             .from("pengantin")
             .upload(filePath, file, {
               contentType: file.type,
@@ -152,7 +152,7 @@ export async function POST(request: Request) {
         uploadedPaths.push(filePath);
 
         const { data: publicUrlData } =
-          supabaseServer.storage
+          getSupabaseServer().storage
             .from("pengantin")
             .getPublicUrl(filePath);
 
@@ -219,7 +219,7 @@ export async function POST(request: Request) {
       // CLEANUP GAMBAR JIKA FIRESTORE GAGAL
       // ==========================================
       if (uploadedPaths.length > 0) {
-        await supabaseServer.storage
+        await getSupabaseServer().storage
           .from("pengantin")
           .remove(uploadedPaths);
       }
@@ -351,7 +351,7 @@ export async function PUT(request: Request) {
           const filePath = `${id}/${crypto.randomUUID()}.${extension}`;
 
           const { error: uploadError } =
-            await supabaseServer.storage
+            await getSupabaseServer().storage
               .from("pengantin")
               .upload(filePath, file, {
                 contentType: file.type,
@@ -365,7 +365,7 @@ export async function PUT(request: Request) {
           uploadedPaths.push(filePath);
 
           const { data: publicUrlData } =
-            supabaseServer.storage
+            getSupabaseServer().storage
               .from("pengantin")
               .getPublicUrl(filePath);
 
@@ -455,7 +455,7 @@ export async function PUT(request: Request) {
       // CLEANUP GAMBAR BARU
       // ==========================================
       if (uploadedPaths.length > 0) {
-        await supabaseServer.storage
+        await getSupabaseServer().storage
           .from("pengantin")
           .remove(uploadedPaths);
       }
@@ -561,7 +561,7 @@ export async function DELETE(request: Request) {
 
       if (pathsToRemove.length > 0) {
         const { error: removeError } =
-          await supabaseServer.storage
+          await getSupabaseServer().storage
             .from("pengantin")
             .remove(pathsToRemove);
 
