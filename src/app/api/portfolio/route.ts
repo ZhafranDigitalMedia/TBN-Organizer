@@ -2,29 +2,36 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { Timestamp } from "firebase-admin/firestore";
-import { adminDb } from "../../../lib/firebase/admin";
+import { getAdminDb } from "../../../lib/firebase/admin";
 import { supabaseServer } from "../../../lib/supabase/server";
 
+// ==========================================
+// GET - LIST / DETAIL PORTFOLIO
+// ==========================================
 export async function GET(request: Request) {
   try {
+    const adminDb = getAdminDb();
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
-    // 1. Jika ada query `id`, kembalikan detail 1 dokumen
+    // Jika ada ID, ambil detail satu portfolio
     if (id) {
       const docRef = adminDb.collection("pengantin").doc(id);
       const docSnap = await docRef.get();
 
       if (!docSnap.exists) {
         return NextResponse.json(
-          { success: false, message: "Data portfolio tidak ditemukan" },
+          {
+            success: false,
+            message: "Data portfolio tidak ditemukan",
+          },
           { status: 404 },
         );
       }
 
       const rawData = docSnap.data();
 
-      // Normalisasi field agar sesuai dengan tipe PortfolioDetail di Frontend
       const data = {
         id: docSnap.id,
         ...rawData,
@@ -38,7 +45,7 @@ export async function GET(request: Request) {
       });
     }
 
-    // 2. Jika tidak ada query `id`, kembalikan semua daftar data (list)
+    // Jika tidak ada ID, ambil semua portfolio
     const snapshot = await adminDb
       .collection("pengantin")
       .orderBy("createdAt", "desc")
@@ -46,11 +53,12 @@ export async function GET(request: Request) {
 
     const data = snapshot.docs.map((doc) => {
       const rawData = doc.data();
+
       return {
         id: doc.id,
         ...rawData,
-        lokasi: rawData.lokasi || rawData.lokasi_acara || "-",
-        jumlahTamu: rawData.jumlahTamu || rawData.jumlah_tamu || "-",
+        lokasi: rawData?.lokasi || rawData?.lokasi_acara || "-",
+        jumlahTamu: rawData?.jumlahTamu || rawData?.jumlah_tamu || "-",
       };
     });
 
@@ -70,15 +78,21 @@ export async function GET(request: Request) {
     );
   }
 }
+
+// ==========================================
+// POST - BUAT PORTFOLIO BARU
+// ==========================================
 export async function POST(request: Request) {
   try {
+    const adminDb = getAdminDb();
+
     const formData = await request.formData();
 
     const namaPengantin = formData.get("namaPengantin");
     const tanggal_acara = formData.get("tanggal_acara");
     const wilayah = formData.get("wilayah");
     const alamat_lengkap = formData.get("alamat_lengkap");
-    const maps_url = formData.get("maps_url"); // 1. TAMBAHKAN INI
+    const maps_url = formData.get("maps_url");
     const lokasi_acara = formData.get("lokasi_acara");
     const jumlah_tamu = formData.get("jumlah_tamu");
     const testimoni = formData.get("testimoni");
@@ -86,13 +100,16 @@ export async function POST(request: Request) {
 
     const files = formData
       .getAll("gambar")
-      .filter((file): file is File => file instanceof File && file.size > 0);
+      .filter(
+        (file): file is File =>
+          file instanceof File && file.size > 0,
+      );
 
     // Validasi input wajib
     if (
       !namaPengantin ||
       !tanggal_acara ||
-      !wilayah || // 2. TAMBAHKAN VALIDASI WILAYAH (JIKA WAJIB)
+      !wilayah ||
       !lokasi_acara ||
       !jumlah_tamu
     ) {
@@ -106,22 +123,27 @@ export async function POST(request: Request) {
     }
 
     const docRef = adminDb.collection("pengantin").doc();
+
     const gambar: string[] = [];
     const uploadedPaths: string[] = [];
 
     try {
-      // 1. Upload file ke Supabase Storage
+      // ==========================================
+      // UPLOAD GAMBAR KE SUPABASE
+      // ==========================================
       for (const file of files) {
-        const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const extension =
+          file.name.split(".").pop()?.toLowerCase() || "jpg";
 
         const filePath = `${docRef.id}/${crypto.randomUUID()}.${extension}`;
 
-        const { error: uploadError } = await supabaseServer.storage
-          .from("pengantin")
-          .upload(filePath, file, {
-            contentType: file.type,
-            upsert: false,
-          });
+        const { error: uploadError } =
+          await supabaseServer.storage
+            .from("pengantin")
+            .upload(filePath, file, {
+              contentType: file.type,
+              upsert: false,
+            });
 
         if (uploadError) {
           throw uploadError;
@@ -129,34 +151,57 @@ export async function POST(request: Request) {
 
         uploadedPaths.push(filePath);
 
-        const { data: publicUrlData } = supabaseServer.storage
-          .from("pengantin")
-          .getPublicUrl(filePath);
+        const { data: publicUrlData } =
+          supabaseServer.storage
+            .from("pengantin")
+            .getPublicUrl(filePath);
 
         gambar.push(publicUrlData.publicUrl);
       }
 
-      // 2. Format tanggal & Timestamp Firestore
+      // ==========================================
+      // FORMAT TANGGAL
+      // ==========================================
       const now = Timestamp.now();
+
       const weddingDate = Timestamp.fromDate(
         new Date(`${String(tanggal_acara)}T00:00:00Z`),
       );
 
-      // 3. Simpan dokumen ke Firestore
+      // ==========================================
+      // SIMPAN KE FIRESTORE
+      // ==========================================
       await docRef.set({
         namaPengantin: String(namaPengantin).trim(),
+
         tanggal_acara: weddingDate,
+
         wilayah: String(wilayah).trim(),
+
         lokasi_acara: String(lokasi_acara).trim(),
+
         alamat_lengkap: alamat_lengkap
           ? String(alamat_lengkap).trim()
           : String(lokasi_acara).trim(),
-        maps_url: maps_url ? String(maps_url).trim() : "",
+
+        maps_url: maps_url
+          ? String(maps_url).trim()
+          : "",
+
         jumlah_tamu: Number(jumlah_tamu) || 0,
-        testimoni: testimoni ? String(testimoni).trim() : "",
-        featured: featured === "true" || featured === "on",
+
+        testimoni: testimoni
+          ? String(testimoni).trim()
+          : "",
+
+        featured:
+          featured === "true" ||
+          featured === "on",
+
         gambar,
+
         createdAt: now,
+
         updatedAt: now,
       });
 
@@ -170,9 +215,13 @@ export async function POST(request: Request) {
         { status: 201 },
       );
     } catch (uploadOrSaveError) {
-      // Cleanup: Hapus berkas yang ter-upload jika terjadi kegagalan proses
+      // ==========================================
+      // CLEANUP GAMBAR JIKA FIRESTORE GAGAL
+      // ==========================================
       if (uploadedPaths.length > 0) {
-        await supabaseServer.storage.from("pengantin").remove(uploadedPaths);
+        await supabaseServer.storage
+          .from("pengantin")
+          .remove(uploadedPaths);
       }
 
       throw uploadOrSaveError;
@@ -191,119 +240,253 @@ export async function POST(request: Request) {
 }
 
 // ==========================================
-// 1. EDIT / UPDATE (PUT)
+// PUT - UPDATE PORTFOLIO
 // ==========================================
 export async function PUT(request: Request) {
   try {
+    const adminDb = getAdminDb();
+
     const formData = await request.formData();
-    const id = formData.get("id") as string;
+
+    const idValue = formData.get("id");
+
+    const id =
+      typeof idValue === "string"
+        ? idValue.trim()
+        : "";
 
     if (!id) {
       return NextResponse.json(
-        { success: false, message: "ID Portfolio wajib disertakan" },
+        {
+          success: false,
+          message: "ID Portfolio wajib disertakan",
+        },
         { status: 400 },
       );
     }
 
-    const docRef = adminDb.collection("pengantin").doc(id);
+    const docRef = adminDb
+      .collection("pengantin")
+      .doc(id);
+
     const docSnap = await docRef.get();
 
     if (!docSnap.exists) {
       return NextResponse.json(
-        { success: false, message: "Data portfolio tidak ditemukan" },
+        {
+          success: false,
+          message: "Data portfolio tidak ditemukan",
+        },
         { status: 404 },
       );
     }
 
-    // Field Form
-    const namaPengantin = formData.get("namaPengantin");
-    const tanggal_acara = formData.get("tanggal_acara");
-    const lokasi_acara = formData.get("lokasi_acara");
-    const jumlah_tamu = formData.get("jumlah_tamu");
-    const testimoni = formData.get("testimoni");
-    const featured = formData.get("featured");
+    // ==========================================
+    // FIELD FORM
+    // ==========================================
+    const namaPengantin =
+      formData.get("namaPengantin");
 
-    // Ambil gambar lama yang dipertahankan
-    const gambarLama = formData.getAll("gambarLama") as string[];
+    const tanggal_acara =
+      formData.get("tanggal_acara");
 
-    // File gambar baru
+    const wilayah =
+      formData.get("wilayah");
+
+    const alamat_lengkap =
+      formData.get("alamat_lengkap");
+
+    const maps_url =
+      formData.get("maps_url");
+
+    const lokasi_acara =
+      formData.get("lokasi_acara");
+
+    const jumlah_tamu =
+      formData.get("jumlah_tamu");
+
+    const testimoni =
+      formData.get("testimoni");
+
+    const featured =
+      formData.get("featured");
+
+    // ==========================================
+    // GAMBAR LAMA
+    // ==========================================
+    const gambarLama = formData
+      .getAll("gambarLama")
+      .filter(
+        (value): value is string =>
+          typeof value === "string" &&
+          value.trim() !== "",
+      );
+
+    // ==========================================
+    // GAMBAR BARU
+    // ==========================================
     const newFiles = formData
       .getAll("gambar")
-      .filter((file): file is File => file instanceof File && file.size > 0);
+      .filter(
+        (file): file is File =>
+          file instanceof File &&
+          file.size > 0,
+      );
 
     const gambarBaru: string[] = [];
     const uploadedPaths: string[] = [];
 
-    // Upload file gambar baru jika ada
-    if (newFiles.length > 0) {
-      for (const file of newFiles) {
-        const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
-        const filePath = `${id}/${crypto.randomUUID()}.${extension}`;
+    try {
+      // ==========================================
+      // UPLOAD GAMBAR BARU
+      // ==========================================
+      if (newFiles.length > 0) {
+        for (const file of newFiles) {
+          const extension =
+            file.name
+              .split(".")
+              .pop()
+              ?.toLowerCase() || "jpg";
 
-        const { error: uploadError } = await supabaseServer.storage
-          .from("pengantin")
-          .upload(filePath, file, {
-            contentType: file.type,
-            upsert: false,
-          });
+          const filePath = `${id}/${crypto.randomUUID()}.${extension}`;
 
-        if (uploadError) {
-          throw uploadError;
+          const { error: uploadError } =
+            await supabaseServer.storage
+              .from("pengantin")
+              .upload(filePath, file, {
+                contentType: file.type,
+                upsert: false,
+              });
+
+          if (uploadError) {
+            throw uploadError;
+          }
+
+          uploadedPaths.push(filePath);
+
+          const { data: publicUrlData } =
+            supabaseServer.storage
+              .from("pengantin")
+              .getPublicUrl(filePath);
+
+          gambarBaru.push(
+            publicUrlData.publicUrl,
+          );
         }
-
-        uploadedPaths.push(filePath);
-
-        const { data: publicUrlData } = supabaseServer.storage
-          .from("pengantin")
-          .getPublicUrl(filePath);
-
-        gambarBaru.push(publicUrlData.publicUrl);
       }
+
+      // ==========================================
+      // GABUNGKAN GAMBAR
+      // ==========================================
+      const finalGambar = [
+        ...gambarLama,
+        ...gambarBaru,
+      ];
+
+      // ==========================================
+      // PAYLOAD UPDATE
+      // ==========================================
+      const updatePayload: Record<string, any> = {
+        updatedAt: Timestamp.now(),
+        gambar: finalGambar,
+      };
+
+      if (namaPengantin) {
+        updatePayload.namaPengantin =
+          String(namaPengantin).trim();
+      }
+
+      if (wilayah) {
+        updatePayload.wilayah =
+          String(wilayah).trim();
+      }
+
+      if (alamat_lengkap) {
+        updatePayload.alamat_lengkap =
+          String(alamat_lengkap).trim();
+      }
+
+      if (maps_url !== null) {
+        updatePayload.maps_url =
+          String(maps_url).trim();
+      }
+
+      if (lokasi_acara) {
+        updatePayload.lokasi_acara =
+          String(lokasi_acara).trim();
+      }
+
+      if (jumlah_tamu) {
+        updatePayload.jumlah_tamu =
+          Number(jumlah_tamu);
+      }
+
+      if (testimoni !== null) {
+        updatePayload.testimoni =
+          String(testimoni).trim();
+      }
+
+      if (featured !== null) {
+        updatePayload.featured =
+          featured === "true" ||
+          featured === "on";
+      }
+
+      if (tanggal_acara) {
+        updatePayload.tanggal_acara =
+          Timestamp.fromDate(
+            new Date(
+              `${String(tanggal_acara)}T00:00:00Z`,
+            ),
+          );
+      }
+
+      // ==========================================
+      // UPDATE FIRESTORE
+      // ==========================================
+      await docRef.update(updatePayload);
+
+      return NextResponse.json({
+        success: true,
+        message: "Portfolio berhasil diperbarui",
+      });
+    } catch (updateError) {
+      // ==========================================
+      // CLEANUP GAMBAR BARU
+      // ==========================================
+      if (uploadedPaths.length > 0) {
+        await supabaseServer.storage
+          .from("pengantin")
+          .remove(uploadedPaths);
+      }
+
+      throw updateError;
     }
-
-    // Gabungkan gambar lama dan baru
-    const finalGambar = [...gambarLama, ...gambarBaru];
-
-    // Persiapkan payload update
-    const updatePayload: Record<string, any> = {
-      updatedAt: Timestamp.now(),
-      gambar: finalGambar,
-    };
-
-    if (namaPengantin)
-      updatePayload.namaPengantin = String(namaPengantin).trim();
-    if (lokasi_acara) updatePayload.lokasi_acara = String(lokasi_acara).trim();
-    if (jumlah_tamu) updatePayload.jumlah_tamu = Number(jumlah_tamu);
-    if (testimoni !== null) updatePayload.testimoni = String(testimoni).trim();
-    if (featured !== null) updatePayload.featured = featured === "true";
-    if (tanggal_acara) {
-      updatePayload.tanggal_acara = Timestamp.fromDate(
-        new Date(`${String(tanggal_acara)}T00:00:00Z`),
-      );
-    }
-
-    await docRef.update(updatePayload);
-
-    return NextResponse.json({
-      success: true,
-      message: "Portfolio berhasil diperbarui",
-    });
   } catch (error) {
     console.error("PUT portfolio error:", error);
+
     return NextResponse.json(
-      { success: false, message: "Gagal memperbarui portfolio" },
+      {
+        success: false,
+        message: "Gagal memperbarui portfolio",
+      },
       { status: 500 },
     );
   }
 }
 
 // ==========================================
-// 2. DELETE (DELETE)
+// DELETE - HAPUS PORTFOLIO
 // ==========================================
 export async function DELETE(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
+    const adminDb = getAdminDb();
+
+    const { searchParams } =
+      new URL(request.url);
+
+    const id =
+      searchParams.get("id");
 
     if (!id) {
       return NextResponse.json(
@@ -315,45 +498,85 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // kode DELETE kamu yang lainnya tetap sama...
+    // ==========================================
+    // AMBIL DOKUMEN FIRESTORE
+    // ==========================================
+    const docRef = adminDb
+      .collection("pengantin")
+      .doc(id);
 
-    // 1. Cari dokumen di Firestore terlebih dahulu untuk mengambil daftar gambar
-    const docRef = adminDb.collection("pengantin").doc(id);
     const docSnap = await docRef.get();
 
     if (!docSnap.exists) {
       return NextResponse.json(
-        { success: false, message: "Data portfolio tidak ditemukan" },
+        {
+          success: false,
+          message: "Data portfolio tidak ditemukan",
+        },
         { status: 404 },
       );
     }
 
     const data = docSnap.data();
 
-    // 2. Hapus berkas gambar dari Supabase Storage jika ada
-    if (data?.gambar && Array.isArray(data.gambar) && data.gambar.length > 0) {
+    // ==========================================
+    // HAPUS GAMBAR SUPABASE
+    // ==========================================
+    if (
+      data?.gambar &&
+      Array.isArray(data.gambar) &&
+      data.gambar.length > 0
+    ) {
       const pathsToRemove: string[] = [];
 
       for (const url of data.gambar) {
         try {
-          // Ekstrak relative path file dari Public URL
-          // Contoh URL: https://.../storage/v1/object/public/pengantin/docId/file.jpg
           const urlObj = new URL(url);
-          const pathSegments = urlObj.pathname.split("/pengantin/");
-          if (pathSegments.length > 1) {
-            pathsToRemove.push(pathSegments[1]);
+
+          const marker = "/pengantin/";
+
+          const pathname =
+            urlObj.pathname;
+
+          const index =
+            pathname.indexOf(marker);
+
+          if (index !== -1) {
+            const filePath =
+              pathname.substring(
+                index + marker.length,
+              );
+
+            if (filePath) {
+              pathsToRemove.push(filePath);
+            }
           }
-        } catch (e) {
-          console.warn("Gagal parse URL gambar:", url);
+        } catch (error) {
+          console.warn(
+            "Gagal parse URL gambar:",
+            url,
+          );
         }
       }
 
       if (pathsToRemove.length > 0) {
-        await supabaseServer.storage.from("pengantin").remove(pathsToRemove);
+        const { error: removeError } =
+          await supabaseServer.storage
+            .from("pengantin")
+            .remove(pathsToRemove);
+
+        if (removeError) {
+          console.warn(
+            "Gagal menghapus beberapa gambar:",
+            removeError,
+          );
+        }
       }
     }
 
-    // 3. Hapus dokumen dari Firestore
+    // ==========================================
+    // HAPUS DOKUMEN FIRESTORE
+    // ==========================================
     await docRef.delete();
 
     return NextResponse.json({
@@ -361,11 +584,16 @@ export async function DELETE(request: Request) {
       message: "Portfolio berhasil dihapus",
     });
   } catch (error) {
-    console.error("DELETE portfolio error:", error);
+    console.error(
+      "DELETE portfolio error:",
+      error,
+    );
+
     return NextResponse.json(
       {
         success: false,
-        message: "Terjadi kesalahan server saat menghapus data",
+        message:
+          "Terjadi kesalahan server saat menghapus data",
       },
       { status: 500 },
     );

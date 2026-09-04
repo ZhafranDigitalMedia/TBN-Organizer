@@ -1,8 +1,13 @@
+export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
-import { adminDb } from "../../../lib/firebase/admin";
+import { getAdminDb } from "../../../lib/firebase/admin";
 
 export async function GET() {
   try {
+    // Firebase Admin baru diinisialisasi saat API dipanggil
+    const adminDb = getAdminDb();
+
     const doc = await adminDb
       .collection("pengantin")
       .doc("FQrIYkP1Zoa80J85KodG")
@@ -28,6 +33,10 @@ export async function GET() {
       {
         success: false,
         message: "Firestore read failed",
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error),
       },
       { status: 500 }
     );
