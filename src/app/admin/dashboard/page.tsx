@@ -8,8 +8,9 @@ import StatCards from "../../components/StatCards";
 import RecentProjectsTable from "../../components/RecentProjectsTable";
 
 export default function DashboardPage() {
-  // State terpusat untuk filter tahun
+  // 1. State terpusat untuk filter tahun & wilayah
   const [selectedYear, setSelectedYear] = useState<string>("ALL");
+  const [selectedWilayah, setSelectedWilayah] = useState<string>("ALL");
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-tbn-cream">
@@ -38,15 +39,18 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Statistik ringkasan (Menerima state & pengubah state) */}
+        {/* Statistik ringkasan (Oper props tahun & wilayah ke StatCards) */}
         <StatCards 
           selectedYear={selectedYear} 
           setSelectedYear={setSelectedYear} 
+          selectedWilayah={selectedWilayah}
+          setSelectedWilayah={setSelectedWilayah}
         />
 
-        {/* Tabel / Card data proyek (Menerima state tahun aktif) */}
+        {/* Tabel data proyek (Terima props tahun & wilayah agar tabel ikut terfilter) */}
         <RecentProjectsTable 
           selectedYear={selectedYear} 
+          selectedWilayah={selectedWilayah}
         />
       </main>
     </div>

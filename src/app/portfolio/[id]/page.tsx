@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import { Calendar, MapPin, Users, Heart, Loader2 } from "lucide-react";
+import { Calendar, MapPin, Users, Heart, Loader2, Compass } from "lucide-react";
 import NavbarMinimal from "../../components/Navbar";
 import CTASection from "../../components/ctaSection";
 import Footer from "../../components/Footer";
@@ -16,8 +16,12 @@ type PortfolioDetail = {
     _seconds: number;
     _nanoseconds: number;
   };
+  wilayah?: string; // Add wilayah field
   lokasi?: string;
+  lokasi_acara?: string; // Fallback jika API menggunakan lokasi_acara
   jumlahTamu?: string | number;
+  jumlah_tamu?: string | number;
+  jumlahtamu?: string | number;
   tema?: string;
   gambar?: string[];
 };
@@ -27,7 +31,7 @@ export default function PortfolioDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  // 1. Unwrap promise params secara synchronous di level komponen
+  // Unwrap promise params secara synchronous
   const { id } = use(params);
 
   const [data, setData] = useState<PortfolioDetail | null>(null);
@@ -40,7 +44,6 @@ export default function PortfolioDetailPage({
 
       try {
         setLoading(true);
-        // Pastikan endpoint API membaca req.nextUrl.searchParams.get("id")
         const response = await fetch(`/api/portfolio?id=${id}`);
         
         if (!response.ok) {
@@ -48,8 +51,6 @@ export default function PortfolioDetailPage({
         }
 
         const result = await response.json();
-
-        // Cek struktur response API
         const portfolioData = result.data || result;
 
         if (portfolioData && (portfolioData.id || portfolioData.namaPengantin)) {
@@ -69,9 +70,8 @@ export default function PortfolioDetailPage({
     }
 
     fetchDetail();
-  }, [id]); // Gunakan string `id` sebagai dependency
+  }, [id]);
 
-  // Format timestamp ke tanggal Indonesia
   function formatDate(timestamp?: PortfolioDetail["tanggal_acara"]) {
     if (!timestamp?._seconds) return "-";
     return new Date(timestamp._seconds * 1000).toLocaleDateString("id-ID", {
@@ -113,6 +113,8 @@ export default function PortfolioDetailPage({
   }
 
   const imageList = data.gambar && data.gambar.length > 0 ? data.gambar : [defaultImage];
+  const lokasiAcara = data.lokasi || data.lokasi_acara || "-";
+  const totalTamu = data.jumlahTamu || data.jumlah_tamu || data.jumlahtamu || "-";
 
   return (
     <div className="min-h-screen bg-tbn-cream">
@@ -158,11 +160,6 @@ export default function PortfolioDetailPage({
       <section className="max-w-7xl mx-auto px-4 sm:px-8 py-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
           <div className="lg:col-span-7 space-y-8">
-            {/* <h2 className="font-serif text-3xl text-tbn-dark">Tentang Pernikahan Ini</h2>
-            <p className="text-tbn-dark leading-relaxed text-sm sm:text-base">
-              {data.deskripsi || "Tidak ada deskripsi rinci untuk portofolio ini."}
-            </p> */}
-
             {data.testimoni && (
               <div className="border-l-2 border-tbn-terracotta pl-6 py-2 bg-tbn-cream/50">
                 <p className="font-serif italic text-lg text-tbn-dark">
@@ -184,11 +181,20 @@ export default function PortfolioDetailPage({
               </div>
             </div>
 
+            {/* Field Wilayah */}
+            <div className="flex items-start gap-4">
+              <Compass className="h-5 w-5 text-tbn-terracotta mt-1 shrink-0" />
+              <div>
+                <p className="text-[10px] font-semibold tracking-widest text-[#A9988B] uppercase">WILAYAH</p>
+                <p className="text-sm font-medium text-tbn-dark">{data.wilayah || "-"}</p>
+              </div>
+            </div>
+
             <div className="flex items-start gap-4">
               <MapPin className="h-5 w-5 text-tbn-terracotta mt-1 shrink-0" />
               <div>
-                <p className="text-[10px] font-semibold tracking-widest text-[#A9988B] uppercase">LOKASI</p>
-                <p className="text-sm font-medium text-tbn-dark">{data.lokasi || "-"}</p>
+                <p className="text-[10px] font-semibold tracking-widest text-[#A9988B] uppercase">LOKASI GEDUNG</p>
+                <p className="text-sm font-medium text-tbn-dark">{lokasiAcara}</p>
               </div>
             </div>
 
@@ -196,17 +202,9 @@ export default function PortfolioDetailPage({
               <Users className="h-5 w-5 text-tbn-terracotta mt-1 shrink-0" />
               <div>
                 <p className="text-[10px] font-semibold tracking-widest text-[#A9988B] uppercase">JUMLAH TAMU</p>
-                <p className="text-sm font-medium text-tbn-dark">{data.jumlahTamu || "-"}</p>
+                <p className="text-sm font-medium text-tbn-dark">{totalTamu}</p>
               </div>
             </div>
-
-            {/* <div className="flex items-start gap-4">
-              <Heart className="h-5 w-5 text-tbn-terracotta mt-1 shrink-0" />
-              <div>
-                <p className="text-[10px] font-semibold tracking-widest text-[#A9988B] uppercase">TEMA</p>
-                <p className="text-sm font-medium text-tbn-dark">{data.tema || "-"}</p>
-              </div>
-            </div> */}
           </div>
         </div>
 

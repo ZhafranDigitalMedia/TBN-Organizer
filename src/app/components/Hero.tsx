@@ -12,7 +12,7 @@ const heroImages = [
   },
   {
     url: "/images/TBNTIM1.jpeg",
-    alt: "Wedding Ceremony Moment",
+    alt: "Tim TBN Wedding Organizer",
   },
   {
     url: "/images/timTBN.jpeg",

@@ -68,13 +68,13 @@ export async function GET(request: Request) {
     );
   }
 }
-
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
 
     const namaPengantin = formData.get("namaPengantin");
     const tanggal_acara = formData.get("tanggal_acara");
+    const wilayah = formData.get("wilayah"); // 1. TAMBAHKAN INI
     const lokasi_acara = formData.get("lokasi_acara");
     const jumlah_tamu = formData.get("jumlah_tamu");
     const testimoni = formData.get("testimoni");
@@ -83,13 +83,14 @@ export async function POST(request: Request) {
     const files = formData
       .getAll("gambar")
       .filter(
-        (file): file is File =>
-          file instanceof File && file.size > 0
+        (file): file is File => file instanceof File && file.size > 0
       );
 
+    // Validasi input wajib
     if (
       !namaPengantin ||
       !tanggal_acara ||
+      !wilayah || // 2. TAMBAHKAN VALIDASI WILAYAH (JIKA WAJIB)
       !lokasi_acara ||
       !jumlah_tamu
     ) {
@@ -107,6 +108,7 @@ export async function POST(request: Request) {
     const uploadedPaths: string[] = [];
 
     try {
+      // 1. Upload file ke Supabase Storage
       for (const file of files) {
         const extension =
           file.name.split(".").pop()?.toLowerCase() || "jpg";
@@ -133,19 +135,21 @@ export async function POST(request: Request) {
         gambar.push(publicUrlData.publicUrl);
       }
 
+      // 2. Format tanggal & Timestamp Firestore
       const now = Timestamp.now();
-
       const weddingDate = Timestamp.fromDate(
         new Date(`${String(tanggal_acara)}T00:00:00Z`)
       );
 
+      // 3. Simpan dokumen ke Firestore
       await docRef.set({
         namaPengantin: String(namaPengantin).trim(),
         tanggal_acara: weddingDate,
+        wilayah: String(wilayah).trim(), // 3. MASUKKAN WILAYAH KE FIRESTORE
         lokasi_acara: String(lokasi_acara).trim(),
-        jumlah_tamu: Number(jumlah_tamu),
+        jumlah_tamu: Number(jumlah_tamu) || 0,
         testimoni: testimoni ? String(testimoni).trim() : "",
-        featured: featured === "true",
+        featured: featured === "true" || featured === "on",
         gambar,
         createdAt: now,
         updatedAt: now,
@@ -161,6 +165,7 @@ export async function POST(request: Request) {
         { status: 201 }
       );
     } catch (uploadOrSaveError) {
+      // Cleanup: Hapus berkas yang ter-upload jika terjadi kegagalan proses
       if (uploadedPaths.length > 0) {
         await supabaseServer.storage
           .from("pengantin")
@@ -302,43 +307,70 @@ export async function DELETE(request: Request) {
 
     if (!id) {
       return NextResponse.json(
-        { success: false, message: "ID Portfolio tidak ditemukan" },
+        {
+          success: false,
+          message: "ID portfolio wajib diisi",
+        },
         { status: 400 }
       );
     }
 
+    // kode DELETE kamu yang lainnya tetap sama...
+
+    // 1. Cari dokumen di Firestore terlebih dahulu untuk mengambil daftar gambar
     const docRef = adminDb.collection("pengantin").doc(id);
     const docSnap = await docRef.get();
 
     if (!docSnap.exists) {
       return NextResponse.json(
-        { success: false, message: "Data tidak ditemukan" },
+        { success: false, message: "Data portfolio tidak ditemukan" },
         { status: 404 }
       );
     }
 
-    // 1. Hapus semua gambar terkait dari folder Supabase Storage (`{id}/...`)
-    const { data: filesInFolder, error: listError } = await supabaseServer.storage
-      .from("pengantin")
-      .list(id);
+    const data = docSnap.data();
 
-    if (!listError && filesInFolder && filesInFolder.length > 0) {
-      const pathsToDelete = filesInFolder.map((f) => `${id}/${f.name}`);
-      await supabaseServer.storage.from("pengantin").remove(pathsToDelete);
+    // 2. Hapus berkas gambar dari Supabase Storage jika ada
+    if (data?.gambar && Array.isArray(data.gambar) && data.gambar.length > 0) {
+      const pathsToRemove: string[] = [];
+
+      for (const url of data.gambar) {
+        try {
+          // Ekstrak relative path file dari Public URL
+          // Contoh URL: https://.../storage/v1/object/public/pengantin/docId/file.jpg
+          const urlObj = new URL(url);
+          const pathSegments = urlObj.pathname.split("/pengantin/");
+          if (pathSegments.length > 1) {
+            pathsToRemove.push(pathSegments[1]);
+          }
+        } catch (e) {
+          console.warn("Gagal parse URL gambar:", url);
+        }
+      }
+
+      if (pathsToRemove.length > 0) {
+        await supabaseServer.storage
+          .from("pengantin")
+          .remove(pathsToRemove);
+      }
     }
 
-    // 2. Hapus dokumen di Firestore
+    // 3. Hapus dokumen dari Firestore
     await docRef.delete();
 
     return NextResponse.json({
       success: true,
-      message: "Portfolio dan seluruh filenya berhasil dihapus",
+      message: "Portfolio berhasil dihapus",
     });
   } catch (error) {
     console.error("DELETE portfolio error:", error);
     return NextResponse.json(
-      { success: false, message: "Gagal menghapus portfolio" },
+      {
+        success: false,
+        message: "Terjadi kesalahan server saat menghapus data",
+      },
       { status: 500 }
     );
   }
 }
+

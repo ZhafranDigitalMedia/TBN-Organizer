@@ -19,16 +19,18 @@ export default function LoginPage() {
 
   const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     setError("");
 
+    const cleanedEmail = email.trim().toLowerCase();
+    const cleanedPassword = password.trim();
+
     // Validasi sederhana
-    if (!email.trim()) {
+    if (!cleanedEmail) {
       setError("Email wajib diisi.");
       return;
     }
 
-    if (!password) {
+    if (!cleanedPassword) {
       setError("Password wajib diisi.");
       return;
     }
@@ -38,8 +40,8 @@ export default function LoginPage() {
 
       await signInWithEmailAndPassword(
         auth,
-        email.trim(),
-        password
+        cleanedEmail,
+        cleanedPassword
       );
 
       // Login berhasil
@@ -56,7 +58,7 @@ export default function LoginPage() {
 
         switch (firebaseError.code) {
           case "auth/invalid-credential":
-            setError("Email atau password salah.");
+            setError("Email atau password yang Anda masukkan salah, atau akun belum terdaftar.");
             break;
 
           case "auth/invalid-email":
@@ -65,6 +67,14 @@ export default function LoginPage() {
 
           case "auth/user-disabled":
             setError("Akun ini telah dinonaktifkan.");
+            break;
+
+          case "auth/user-not-found":
+            setError("Akun dengan email ini tidak ditemukan.");
+            break;
+
+          case "auth/wrong-password":
+            setError("Password yang dimasukkan salah.");
             break;
 
           case "auth/too-many-requests":
@@ -85,7 +95,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8F5EE] flex flex-col items-center justify-center px-4 py-8 sm:p-6">
+    <div className="min-h-screen bg-tbn-cream flex flex-col items-center justify-center px-4 py-8 sm:p-6">
       {/* Logo & Header */}
       <div className="flex flex-col items-center mb-6 sm:mb-8 text-center">
         <Heart

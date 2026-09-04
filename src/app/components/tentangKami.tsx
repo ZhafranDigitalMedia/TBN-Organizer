@@ -11,7 +11,7 @@ export default function AboutSection() {
           <div className="relative">
             <div className="relative aspect-4/3 overflow-hidden rounded-xs bg-[#E8DFD1]">
               <img
-                src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1000&q=80"
+                src="images/TBNTIM1.jpeg"
                 alt="TBN Organizer Venue Decor"
                 className="h-full w-full object-cover"
               />
