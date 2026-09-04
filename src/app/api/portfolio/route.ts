@@ -18,7 +18,7 @@ export async function GET(request: Request) {
       if (!docSnap.exists) {
         return NextResponse.json(
           { success: false, message: "Data portfolio tidak ditemukan" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
         success: false,
         message: "Gagal mengambil data portfolio",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -76,7 +76,9 @@ export async function POST(request: Request) {
 
     const namaPengantin = formData.get("namaPengantin");
     const tanggal_acara = formData.get("tanggal_acara");
-    const wilayah = formData.get("wilayah"); // 1. TAMBAHKAN INI
+    const wilayah = formData.get("wilayah");
+    const alamat_lengkap = formData.get("alamat_lengkap");
+    const maps_url = formData.get("maps_url"); // 1. TAMBAHKAN INI
     const lokasi_acara = formData.get("lokasi_acara");
     const jumlah_tamu = formData.get("jumlah_tamu");
     const testimoni = formData.get("testimoni");
@@ -84,9 +86,7 @@ export async function POST(request: Request) {
 
     const files = formData
       .getAll("gambar")
-      .filter(
-        (file): file is File => file instanceof File && file.size > 0
-      );
+      .filter((file): file is File => file instanceof File && file.size > 0);
 
     // Validasi input wajib
     if (
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
           success: false,
           message: "Data wajib belum lengkap",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -112,8 +112,7 @@ export async function POST(request: Request) {
     try {
       // 1. Upload file ke Supabase Storage
       for (const file of files) {
-        const extension =
-          file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
 
         const filePath = `${docRef.id}/${crypto.randomUUID()}.${extension}`;
 
@@ -140,15 +139,19 @@ export async function POST(request: Request) {
       // 2. Format tanggal & Timestamp Firestore
       const now = Timestamp.now();
       const weddingDate = Timestamp.fromDate(
-        new Date(`${String(tanggal_acara)}T00:00:00Z`)
+        new Date(`${String(tanggal_acara)}T00:00:00Z`),
       );
 
       // 3. Simpan dokumen ke Firestore
       await docRef.set({
         namaPengantin: String(namaPengantin).trim(),
         tanggal_acara: weddingDate,
-        wilayah: String(wilayah).trim(), // 3. MASUKKAN WILAYAH KE FIRESTORE
+        wilayah: String(wilayah).trim(),
         lokasi_acara: String(lokasi_acara).trim(),
+        alamat_lengkap: alamat_lengkap
+          ? String(alamat_lengkap).trim()
+          : String(lokasi_acara).trim(),
+        maps_url: maps_url ? String(maps_url).trim() : "",
         jumlah_tamu: Number(jumlah_tamu) || 0,
         testimoni: testimoni ? String(testimoni).trim() : "",
         featured: featured === "true" || featured === "on",
@@ -164,14 +167,12 @@ export async function POST(request: Request) {
           message: "Portfolio berhasil dibuat",
           gambar,
         },
-        { status: 201 }
+        { status: 201 },
       );
     } catch (uploadOrSaveError) {
       // Cleanup: Hapus berkas yang ter-upload jika terjadi kegagalan proses
       if (uploadedPaths.length > 0) {
-        await supabaseServer.storage
-          .from("pengantin")
-          .remove(uploadedPaths);
+        await supabaseServer.storage.from("pengantin").remove(uploadedPaths);
       }
 
       throw uploadOrSaveError;
@@ -184,7 +185,7 @@ export async function POST(request: Request) {
         success: false,
         message: "Gagal membuat portfolio",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -200,7 +201,7 @@ export async function PUT(request: Request) {
     if (!id) {
       return NextResponse.json(
         { success: false, message: "ID Portfolio wajib disertakan" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -210,7 +211,7 @@ export async function PUT(request: Request) {
     if (!docSnap.exists) {
       return NextResponse.json(
         { success: false, message: "Data portfolio tidak ditemukan" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -228,10 +229,7 @@ export async function PUT(request: Request) {
     // File gambar baru
     const newFiles = formData
       .getAll("gambar")
-      .filter(
-        (file): file is File =>
-          file instanceof File && file.size > 0
-      );
+      .filter((file): file is File => file instanceof File && file.size > 0);
 
     const gambarBaru: string[] = [];
     const uploadedPaths: string[] = [];
@@ -239,8 +237,7 @@ export async function PUT(request: Request) {
     // Upload file gambar baru jika ada
     if (newFiles.length > 0) {
       for (const file of newFiles) {
-        const extension =
-          file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
         const filePath = `${id}/${crypto.randomUUID()}.${extension}`;
 
         const { error: uploadError } = await supabaseServer.storage
@@ -273,14 +270,15 @@ export async function PUT(request: Request) {
       gambar: finalGambar,
     };
 
-    if (namaPengantin) updatePayload.namaPengantin = String(namaPengantin).trim();
+    if (namaPengantin)
+      updatePayload.namaPengantin = String(namaPengantin).trim();
     if (lokasi_acara) updatePayload.lokasi_acara = String(lokasi_acara).trim();
     if (jumlah_tamu) updatePayload.jumlah_tamu = Number(jumlah_tamu);
     if (testimoni !== null) updatePayload.testimoni = String(testimoni).trim();
     if (featured !== null) updatePayload.featured = featured === "true";
     if (tanggal_acara) {
       updatePayload.tanggal_acara = Timestamp.fromDate(
-        new Date(`${String(tanggal_acara)}T00:00:00Z`)
+        new Date(`${String(tanggal_acara)}T00:00:00Z`),
       );
     }
 
@@ -294,7 +292,7 @@ export async function PUT(request: Request) {
     console.error("PUT portfolio error:", error);
     return NextResponse.json(
       { success: false, message: "Gagal memperbarui portfolio" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -313,7 +311,7 @@ export async function DELETE(request: Request) {
           success: false,
           message: "ID portfolio wajib diisi",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -326,7 +324,7 @@ export async function DELETE(request: Request) {
     if (!docSnap.exists) {
       return NextResponse.json(
         { success: false, message: "Data portfolio tidak ditemukan" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -351,9 +349,7 @@ export async function DELETE(request: Request) {
       }
 
       if (pathsToRemove.length > 0) {
-        await supabaseServer.storage
-          .from("pengantin")
-          .remove(pathsToRemove);
+        await supabaseServer.storage.from("pengantin").remove(pathsToRemove);
       }
     }
 
@@ -371,8 +367,7 @@ export async function DELETE(request: Request) {
         success: false,
         message: "Terjadi kesalahan server saat menghapus data",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
-
